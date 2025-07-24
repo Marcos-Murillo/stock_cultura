@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Package, Users, BarChart3 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import FirebaseTest from "@/components/firebase-test"
+
 
 export default function HomePage() {
   return (
@@ -14,11 +14,7 @@ export default function HomePage() {
             Gestiona el inventario de implementos culturales de la Universidad del Valle
           </p>
         </div>
-
-        {/* Componente de prueba de Firebase */}
-        <div className="max-w-4xl mx-auto mb-8">
-          <FirebaseTest />
-        </div>
+        
 
         <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
           <Card className="border-lime-200 hover:shadow-lg transition-shadow">
