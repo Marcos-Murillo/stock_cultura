@@ -29,18 +29,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
 
-// Configurar para desarrollo (opcional)
-if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
-  // Solo conectar al emulador si estamos en desarrollo y en el cliente
-  try {
-    // Verificar si ya está conectado al emulador
-    if (!db._delegate._databaseId.projectId.includes("demo-")) {
-      console.log("Conectando a Firestore en producción...")
-    }
-  } catch (error) {
-    console.log("Firebase configurado correctamente")
-  }
-}
 
 // Funciones para el inventario con mejor manejo de errores
 export const addItem = async (item: Omit<InventoryItem, "id">) => {
