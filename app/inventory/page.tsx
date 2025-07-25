@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Plus, Search, Trash2 } from "lucide-react"
+import { Plus, Search, Trash2, AlertTriangle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,12 +13,14 @@ import { useToast } from "@/hooks/use-toast"
 import { addItem, getInventory, removeItem } from "@/lib/firebase"
 import type { InventoryItem } from "@/lib/types"
 import Navigation from "@/components/navigation"
+import DamageReportModal from "@/components/damage-report-modal"
 
 export default function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([])
   const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [showAddForm, setShowAddForm] = useState(false)
+  const [selectedItemForDamage, setSelectedItemForDamage] = useState<InventoryItem | null>(null)
   const [formData, setFormData] = useState({
     name: "",
     serialNumber: "",
@@ -125,6 +127,23 @@ export default function InventoryPage() {
     }
   }
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "available":
+        return (
+          <Badge variant="secondary" className="bg-green-100 text-green-800">
+            Disponible
+          </Badge>
+        )
+      case "loaned":
+        return <Badge className="bg-orange-100 text-orange-800">Prestado</Badge>
+      case "removed":
+        return <Badge variant="destructive">Dado de baja</Badge>
+      default:
+        return <Badge variant="outline">Desconocido</Badge>
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-lime-50 to-lime-100">
       <Navigation />
@@ -215,11 +234,20 @@ export default function InventoryPage() {
                     <h3 className="font-semibold text-lime-800">{item.name}</h3>
                     <p className="text-sm text-gray-600">Serie: {item.serialNumber}</p>
                     {item.description && <p className="text-sm text-gray-500">{item.description}</p>}
+                    {item.loanCount && item.loanCount > 0 && (
+                      <p className="text-xs text-blue-600">Prestado {item.loanCount} veces</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="bg-lime-100 text-lime-800">
-                      {item.status === "available" ? "Disponible" : "No disponible"}
-                    </Badge>
+                    {getStatusBadge(item.status)}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedItemForDamage(item)}
+                      className="border-orange-600 text-orange-600 hover:bg-orange-50"
+                    >
+                      <AlertTriangle className="w-4 h-4" />
+                    </Button>
                     <Button variant="destructive" size="sm" onClick={() => handleRemoveItem(item.id!)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -234,6 +262,18 @@ export default function InventoryPage() {
             </div>
           </CardContent>
         </Card>
+
+        <DamageReportModal
+          item={selectedItemForDamage!}
+          isOpen={!!selectedItemForDamage}
+          onClose={() => setSelectedItemForDamage(null)}
+          onReportCreated={() => {
+            toast({
+              title: "Éxito",
+              description: "Reporte de daño registrado",
+            })
+          }}
+        />
       </div>
     </div>
   )

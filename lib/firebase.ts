@@ -1,4 +1,4 @@
-// Configuración de Firebase limpia y sin errores
+// Configuración de Firebase con nuevas funciones
 import { initializeApp } from "firebase/app"
 import {
   getFirestore,
@@ -11,8 +11,9 @@ import {
   query,
   orderBy,
   Timestamp,
+  increment,
 } from "firebase/firestore"
-import type { InventoryItem, Loan } from "./types"
+import type { InventoryItem, Loan, DamageReport, BorrowerSuggestion } from "./types"
 
 // Configuración de Firebase
 const firebaseConfig = {
@@ -25,7 +26,6 @@ const firebaseConfig = {
   measurementId: "G-Y9EDDHBE68"
 }
 
-// Inicializar Firebase
 const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
 
@@ -35,6 +35,7 @@ export const addItem = async (item: Omit<InventoryItem, "id">) => {
     const docRef = await addDoc(collection(db, "inventory"), {
       ...item,
       createdAt: Timestamp.fromDate(item.createdAt),
+      loanCount: 0,
     })
     return docRef.id
   } catch (error) {
@@ -90,15 +91,17 @@ export const updateItemStatus = async (itemId: string, status: "available" | "lo
 // Funciones para préstamos
 export const createLoan = async (loan: Omit<Loan, "id">) => {
   try {
-    // Crear el préstamo
     const docRef = await addDoc(collection(db, "loans"), {
       ...loan,
       loanDate: Timestamp.fromDate(loan.loanDate),
       createdAt: Timestamp.now(),
     })
 
-    // Actualizar el estado del elemento a 'prestado'
+    // Actualizar el estado del elemento y incrementar contador
     await updateItemStatus(loan.itemId, "loaned")
+    await updateDoc(doc(db, "inventory", loan.itemId), {
+      loanCount: increment(1),
+    })
 
     return docRef.id
   } catch (error) {
@@ -131,8 +134,6 @@ export const getLoans = async (): Promise<Loan[]> => {
 export const returnLoan = async (loanId: string) => {
   try {
     const loanDoc = doc(db, "loans", loanId)
-
-    // Obtener información del préstamo
     const loans = await getLoans()
     const loan = loans.find((l) => l.id === loanId)
 
@@ -140,13 +141,11 @@ export const returnLoan = async (loanId: string) => {
       throw new Error("Préstamo no encontrado")
     }
 
-    // Actualizar el préstamo como devuelto
     await updateDoc(loanDoc, {
       status: "returned",
       returnDate: Timestamp.now(),
     })
 
-    // Actualizar el estado del elemento a 'disponible'
     await updateItemStatus(loan.itemId, "available")
   } catch (error) {
     console.error("Error returning loan:", error)
@@ -157,7 +156,132 @@ export const returnLoan = async (loanId: string) => {
   }
 }
 
-// Función para probar la conexión (simplificada)
+// Funciones para sugerencias de prestatarios
+export const getBorrowerSuggestions = async (searchTerm: string): Promise<BorrowerSuggestion[]> => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "loans"))
+    const loans = querySnapshot.docs.map((doc) => doc.data()) as Loan[]
+
+    // Crear un mapa único de prestatarios
+    const borrowersMap = new Map<string, BorrowerSuggestion>()
+
+    loans.forEach((loan) => {
+      const key = loan.borrowerDocument
+      if (!borrowersMap.has(key)) {
+        borrowersMap.set(key, {
+          name: loan.borrowerName,
+          document: loan.borrowerDocument,
+          phone: loan.borrowerPhone || "",
+          email: loan.borrowerEmail || "",
+          culturalGroup: loan.culturalGroup,
+        })
+      }
+    })
+
+    const suggestions = Array.from(borrowersMap.values())
+
+    if (!searchTerm) return suggestions.slice(0, 5)
+
+    return suggestions
+      .filter(
+        (borrower) =>
+          borrower.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          borrower.document.includes(searchTerm) ||
+          borrower.email.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
+      .slice(0, 5)
+  } catch (error) {
+    console.error("Error getting borrower suggestions:", error)
+    return []
+  }
+}
+
+// Funciones para reportes de daños
+export const createDamageReport = async (report: Omit<DamageReport, "id">) => {
+  try {
+    const docRef = await addDoc(collection(db, "damageReports"), {
+      ...report,
+      reportDate: Timestamp.fromDate(report.reportDate),
+    })
+    return docRef.id
+  } catch (error) {
+    console.error("Error creating damage report:", error)
+    if (error instanceof Error) {
+      throw new Error(`Error al crear reporte: ${error.message}`)
+    }
+    throw new Error("Error desconocido al crear reporte")
+  }
+}
+
+export const getDamageReports = async (): Promise<DamageReport[]> => {
+  try {
+    const querySnapshot = await getDocs(query(collection(db, "damageReports"), orderBy("reportDate", "desc")))
+    return querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      reportDate: doc.data().reportDate.toDate(),
+    })) as DamageReport[]
+  } catch (error) {
+    console.error("Error getting damage reports:", error)
+    return []
+  }
+}
+
+// Función para obtener estadísticas detalladas
+export const getDetailedStats = async () => {
+  try {
+    const [inventory, loans, damageReports] = await Promise.all([getInventory(), getLoans(), getDamageReports()])
+
+    // Estadísticas por elemento
+    const itemStats = inventory.map((item) => {
+      const itemLoans = loans.filter((loan) => loan.itemId === item.id)
+      const itemDamages = damageReports.filter((report) => report.itemId === item.id)
+
+      return {
+        ...item,
+        totalLoans: itemLoans.length,
+        activeLoans: itemLoans.filter((loan) => loan.status === "active").length,
+        returnedLoans: itemLoans.filter((loan) => loan.status === "returned").length,
+        damageReports: itemDamages.length,
+        lastLoanDate: itemLoans.length > 0 ? itemLoans[0].loanDate : null,
+      }
+    })
+
+    // Estadísticas por grupo cultural
+    const groupStats = loans.reduce(
+      (acc, loan) => {
+        if (!acc[loan.culturalGroup]) {
+          acc[loan.culturalGroup] = {
+            totalLoans: 0,
+            activeLoans: 0,
+            returnedLoans: 0,
+          }
+        }
+        acc[loan.culturalGroup].totalLoans++
+        if (loan.status === "active") {
+          acc[loan.culturalGroup].activeLoans++
+        } else {
+          acc[loan.culturalGroup].returnedLoans++
+        }
+        return acc
+      },
+      {} as Record<string, any>,
+    )
+
+    return {
+      itemStats: itemStats.sort((a, b) => b.totalLoans - a.totalLoans),
+      groupStats,
+      totalItems: inventory.length,
+      totalLoans: loans.length,
+      activeLoans: loans.filter((loan) => loan.status === "active").length,
+      totalDamageReports: damageReports.length,
+    }
+  } catch (error) {
+    console.error("Error getting detailed stats:", error)
+    throw error
+  }
+}
+
 export const testFirebaseConnection = async () => {
   try {
     const testCollection = collection(db, "test")

@@ -15,6 +15,8 @@ import { getInventory, getLoans, createLoan, returnLoan } from "@/lib/firebase"
 import { CULTURAL_GROUPS } from "@/lib/constants"
 import type { InventoryItem, Loan } from "@/lib/types"
 import Navigation from "@/components/navigation"
+import BorrowerAutocomplete from "@/components/borrower-autocomplete"
+import ItemSelector from "@/components/item-selector"
 
 export default function LoansPage() {
   const [availableItems, setAvailableItems] = useState<InventoryItem[]>([])
@@ -25,6 +27,8 @@ export default function LoansPage() {
   const [formData, setFormData] = useState({
     borrowerName: "",
     borrowerDocument: "",
+    borrowerPhone: "",
+    borrowerEmail: "",
     culturalGroup: "",
     itemId: "",
     loanDate: new Date().toISOString().split("T")[0],
@@ -41,7 +45,9 @@ export default function LoansPage() {
       (loan) =>
         loan.borrowerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         loan.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        loan.itemSerialNumber.toLowerCase().includes(searchTerm.toLowerCase()),
+        loan.itemSerialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        loan.borrowerDocument.includes(searchTerm) ||
+        loan.borrowerEmail.toLowerCase().includes(searchTerm.toLowerCase()),
     )
     setFilteredLoans(filtered)
   }, [loans, searchTerm])
@@ -65,7 +71,14 @@ export default function LoansPage() {
   const handleCreateLoan = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.borrowerName || !formData.borrowerDocument || !formData.culturalGroup || !formData.itemId) {
+    if (
+      !formData.borrowerName ||
+      !formData.borrowerDocument ||
+      !formData.borrowerPhone ||
+      !formData.borrowerEmail ||
+      !formData.culturalGroup ||
+      !formData.itemId
+    ) {
       toast({
         title: "Error",
         description: "Todos los campos son obligatorios",
@@ -89,6 +102,8 @@ export default function LoansPage() {
       await createLoan({
         borrowerName: formData.borrowerName,
         borrowerDocument: formData.borrowerDocument,
+        borrowerPhone: formData.borrowerPhone,
+        borrowerEmail: formData.borrowerEmail,
         culturalGroup: formData.culturalGroup,
         itemId: formData.itemId,
         itemName: selectedItem.name,
@@ -105,6 +120,8 @@ export default function LoansPage() {
       setFormData({
         borrowerName: "",
         borrowerDocument: "",
+        borrowerPhone: "",
+        borrowerEmail: "",
         culturalGroup: "",
         itemId: "",
         loanDate: new Date().toISOString().split("T")[0],
@@ -161,29 +178,14 @@ export default function LoansPage() {
               <CardTitle className="text-lime-800">Registrar Nuevo Préstamo</CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleCreateLoan} className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="borrowerName">Nombre del Solicitante *</Label>
-                    <Input
-                      id="borrowerName"
-                      value={formData.borrowerName}
-                      onChange={(e) => setFormData({ ...formData, borrowerName: e.target.value })}
-                      placeholder="Nombre completo"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="borrowerDocument">Código Estudiantil o Cédula *</Label>
-                    <Input
-                      id="borrowerDocument"
-                      value={formData.borrowerDocument}
-                      onChange={(e) => setFormData({ ...formData, borrowerDocument: e.target.value })}
-                      placeholder="Documento de identificación"
-                      required
-                    />
-                  </div>
-                </div>
+              <form onSubmit={handleCreateLoan} className="space-y-6">
+                <BorrowerAutocomplete
+                  onSelect={(borrower) => {
+                    // El autocompletado ya maneja la actualización del formData
+                  }}
+                  formData={formData}
+                  setFormData={setFormData}
+                />
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
@@ -216,24 +218,11 @@ export default function LoansPage() {
                   </div>
                 </div>
 
-                <div>
-                  <Label htmlFor="itemId">Elemento a Prestar *</Label>
-                  <Select
-                    value={formData.itemId}
-                    onValueChange={(value) => setFormData({ ...formData, itemId: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar elemento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableItems.map((item) => (
-                        <SelectItem key={item.id} value={item.id!}>
-                          {item.name} - {item.serialNumber}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <ItemSelector
+                  items={availableItems}
+                  selectedItemId={formData.itemId}
+                  onSelect={(itemId) => setFormData({ ...formData, itemId })}
+                />
 
                 <div className="flex gap-2">
                   <Button type="submit" disabled={loading} className="bg-lime-600 hover:bg-lime-700">
@@ -258,7 +247,7 @@ export default function LoansPage() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Buscar por nombre, elemento o serie..."
+                  placeholder="Buscar por nombre, elemento, serie, cédula o correo..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -279,6 +268,9 @@ export default function LoansPage() {
                       <h3 className="font-semibold text-lime-800">{loan.itemName}</h3>
                       <p className="text-sm text-gray-600">Serie: {loan.itemSerialNumber}</p>
                       <p className="text-sm text-gray-600">Prestado a: {loan.borrowerName}</p>
+                      <p className="text-sm text-gray-600">Cédula: {loan.borrowerDocument}</p>
+                      <p className="text-sm text-gray-600">Teléfono: {loan.borrowerPhone}</p>
+                      <p className="text-sm text-gray-600">Email: {loan.borrowerEmail}</p>
                       <p className="text-sm text-gray-600">Grupo: {loan.culturalGroup}</p>
                       <p className="text-sm text-gray-500">Fecha: {loan.loanDate.toLocaleDateString()}</p>
                     </div>

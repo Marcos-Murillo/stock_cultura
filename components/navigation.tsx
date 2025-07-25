@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Home, Package, Users, BarChart3 } from "lucide-react"
+import { Home, Package, Users, BarChart3, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function Navigation() {
@@ -35,6 +35,12 @@ export default function Navigation() {
               <Button variant="ghost" className="text-white hover:bg-lime-700">
                 <BarChart3 className="w-4 h-4 mr-2" />
                 Reportes
+              </Button>
+            </Link>
+            <Link href="/statistics">
+              <Button variant="ghost" className="text-white hover:bg-lime-700">
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Estadísticas
               </Button>
             </Link>
           </div>
