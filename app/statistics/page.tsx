@@ -9,7 +9,7 @@ import { getDetailedStats } from "@/lib/firebase"
 import Navigation from "@/components/navigation"
 
 interface ItemStat {
-  id: string
+  id?: string
   name: string
   serialNumber: string
   totalLoans: number
@@ -306,7 +306,10 @@ export default function StatisticsPage() {
                 </thead>
                 <tbody>
                   {filteredItems.map((item) => (
-                    <tr key={item.id} className="border-b border-lime-100 hover:bg-lime-50">
+                    <tr
+                      key={item.id || `item-${item.serialNumber}`}
+                      className="border-b border-lime-100 hover:bg-lime-50"
+                    >
                       <td className="p-3">
                         <div className="font-medium text-lime-800">{item.name}</div>
                       </td>
