@@ -4,6 +4,7 @@ export interface InventoryItem {
   serialNumber: string
   description?: string
   status: "available" | "loaned" | "removed"
+  location?: "Auditorio 5" | "Bodega"
   createdAt: Date
   damageReports?: DamageReport[]
   loanCount?: number

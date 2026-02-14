@@ -3,28 +3,34 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Plus, Search, Trash2, AlertTriangle } from "lucide-react"
+import { Plus, Search, Trash2, AlertTriangle, MoreVertical, Edit } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { addItem, getInventory, removeItem } from "@/lib/firebase"
+import { addItem, getInventory, removeItem, updateItem } from "@/lib/firebase"
 import type { InventoryItem } from "@/lib/types"
 import Navigation from "@/components/navigation"
 import DamageReportModal from "@/components/damage-report-modal"
+import EditItemModal from "@/components/edit-item-modal"
+import { DropdownMenu, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 
 export default function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([])
   const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
+  const [locationFilter, setLocationFilter] = useState<string>("")
   const [showAddForm, setShowAddForm] = useState(false)
   const [selectedItemForDamage, setSelectedItemForDamage] = useState<InventoryItem | null>(null)
+  const [selectedItemForEdit, setSelectedItemForEdit] = useState<InventoryItem | null>(null)
   const [formData, setFormData] = useState({
     name: "",
     serialNumber: "",
     description: "",
+    location: "" as "Auditorio 5" | "Bodega" | "",
   })
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
@@ -34,13 +40,18 @@ export default function InventoryPage() {
   }, [])
 
   useEffect(() => {
-    const filtered = items.filter(
+    let filtered = items.filter(
       (item) =>
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()),
     )
+
+    if (locationFilter && locationFilter !== "all") {
+      filtered = filtered.filter((item) => item.location === locationFilter)
+    }
+
     setFilteredItems(filtered)
-  }, [items, searchTerm])
+  }, [items, searchTerm, locationFilter])
 
   const loadInventory = async () => {
     try {
@@ -83,6 +94,7 @@ export default function InventoryPage() {
         name: formData.name,
         serialNumber: formData.serialNumber,
         description: formData.description,
+        location: formData.location || undefined,
         status: "available",
         createdAt: new Date(),
       })
@@ -92,7 +104,7 @@ export default function InventoryPage() {
         description: "Elemento agregado al inventario",
       })
 
-      setFormData({ name: "", serialNumber: "", description: "" })
+      setFormData({ name: "", serialNumber: "", description: "", location: "" })
       setShowAddForm(false)
       loadInventory()
     } catch (error) {
@@ -122,6 +134,23 @@ export default function InventoryPage() {
       toast({
         title: "Error",
         description: "No se pudo dar de baja el elemento",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleEditItem = async (itemId: string, updates: Partial<InventoryItem>) => {
+    try {
+      await updateItem(itemId, updates)
+      toast({
+        title: "Éxito",
+        description: "Elemento actualizado correctamente",
+      })
+      loadInventory()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el elemento",
         variant: "destructive",
       })
     }
@@ -194,6 +223,21 @@ export default function InventoryPage() {
                     placeholder="Descripción adicional del elemento"
                   />
                 </div>
+                <div>
+                  <Label htmlFor="location">Ubicación</Label>
+                  <Select
+                    value={formData.location}
+                    onValueChange={(value) => setFormData({ ...formData, location: value as "Auditorio 5" | "Bodega" })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar ubicación" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Auditorio 5">Auditorio 5</SelectItem>
+                      <SelectItem value="Bodega">Bodega</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="flex gap-2">
                   <Button type="submit" disabled={loading} className="bg-lime-600 hover:bg-lime-700">
                     {loading ? "Agregando..." : "Agregar"}
@@ -221,6 +265,18 @@ export default function InventoryPage() {
                   className="pl-10"
                 />
               </div>
+              <div className="min-w-[180px]">
+                <Select value={locationFilter} onValueChange={setLocationFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todas las ubicaciones" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las ubicaciones</SelectItem>
+                    <SelectItem value="Auditorio 5">Auditorio 5</SelectItem>
+                    <SelectItem value="Bodega">Bodega</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -231,7 +287,14 @@ export default function InventoryPage() {
                   className="flex items-center justify-between p-4 border border-lime-200 rounded-lg bg-white"
                 >
                   <div className="flex-1">
-                    <h3 className="font-semibold text-lime-800">{item.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-lime-800">{item.name}</h3>
+                      {item.location && (
+                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                          {item.location}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-600">Serie: {item.serialNumber}</p>
                     {item.description && <p className="text-sm text-gray-500">{item.description}</p>}
                     {item.loanCount && item.loanCount > 0 && (
@@ -240,17 +303,26 @@ export default function InventoryPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {getStatusBadge(item.status)}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedItemForDamage(item)}
-                      className="border-orange-600 text-orange-600 hover:bg-orange-50"
+                    <DropdownMenu
+                      trigger={
+                        <Button variant="outline" size="sm">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      }
                     >
-                      <AlertTriangle className="w-4 h-4" />
-                    </Button>
-                    <Button variant="destructive" size="sm" onClick={() => handleRemoveItem(item.id!)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                      <DropdownMenuItem onClick={() => setSelectedItemForEdit(item)}>
+                        <Edit className="w-4 h-4 mr-2" />
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSelectedItemForDamage(item)}>
+                        <AlertTriangle className="w-4 h-4 mr-2" />
+                        Reportar Daño
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleRemoveItem(item.id!)} variant="destructive">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Eliminar
+                      </DropdownMenuItem>
+                    </DropdownMenu>
                   </div>
                 </div>
               ))}
@@ -273,6 +345,13 @@ export default function InventoryPage() {
               description: "Reporte de daño registrado",
             })
           }}
+        />
+
+        <EditItemModal
+          item={selectedItemForEdit}
+          isOpen={!!selectedItemForEdit}
+          onClose={() => setSelectedItemForEdit(null)}
+          onSave={handleEditItem}
         />
       </div>
     </div>

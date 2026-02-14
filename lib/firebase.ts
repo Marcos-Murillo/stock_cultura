@@ -88,6 +88,18 @@ export const updateItemStatus = async (itemId: string, status: "available" | "lo
   }
 }
 
+export const updateItem = async (itemId: string, updates: Partial<InventoryItem>) => {
+  try {
+    await updateDoc(doc(db, "inventory", itemId), updates)
+  } catch (error) {
+    console.error("Error updating item:", error)
+    if (error instanceof Error) {
+      throw new Error(`Error al actualizar elemento: ${error.message}`)
+    }
+    throw new Error("Error desconocido al actualizar elemento")
+  }
+}
+
 // Funciones para préstamos
 export const createLoan = async (loan: Omit<Loan, "id">) => {
   try {
