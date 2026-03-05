@@ -3,13 +3,14 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Plus, Search, Trash2, AlertTriangle, MoreVertical, Edit } from "lucide-react"
+import { Plus, Search, Trash2, AlertTriangle, MoreVertical, Edit, CheckCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Pagination } from "@/components/ui/pagination"
 import { useToast } from "@/hooks/use-toast"
 import { addItem, getInventory, removeItem, updateItem } from "@/lib/firebase"
 import type { InventoryItem } from "@/lib/types"
@@ -23,6 +24,7 @@ export default function InventoryPage() {
   const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [locationFilter, setLocationFilter] = useState<string>("")
+  const [currentPage, setCurrentPage] = useState(1)
   const [showAddForm, setShowAddForm] = useState(false)
   const [selectedItemForDamage, setSelectedItemForDamage] = useState<InventoryItem | null>(null)
   const [selectedItemForEdit, setSelectedItemForEdit] = useState<InventoryItem | null>(null)
@@ -34,6 +36,12 @@ export default function InventoryPage() {
   })
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
+
+  const itemsPerPage = 10
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedItems = filteredItems.slice(startIndex, endIndex)
 
   useEffect(() => {
     loadInventory()
@@ -51,6 +59,7 @@ export default function InventoryPage() {
     }
 
     setFilteredItems(filtered)
+    setCurrentPage(1) // Reset to first page when filters change
   }, [items, searchTerm, locationFilter])
 
   const loadInventory = async () => {
@@ -151,6 +160,31 @@ export default function InventoryPage() {
       toast({
         title: "Error",
         description: "No se pudo actualizar el elemento",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleMarkAsAvailable = async (item: InventoryItem) => {
+    if (
+      !confirm(
+        `¿Estás seguro de que quieres marcar "${item.name}" como disponible? Esto solo debe hacerse si el elemento no está realmente prestado.`,
+      )
+    ) {
+      return
+    }
+
+    try {
+      await updateItem(item.id!, { status: "available" })
+      toast({
+        title: "Éxito",
+        description: "Elemento marcado como disponible",
+      })
+      loadInventory()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado",
         variant: "destructive",
       })
     }
@@ -281,7 +315,7 @@ export default function InventoryPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {filteredItems.map((item) => (
+              {paginatedItems.map((item) => (
                 <div
                   key={item.id}
                   className="flex items-center justify-between p-4 border border-lime-200 rounded-lg bg-white"
@@ -314,6 +348,12 @@ export default function InventoryPage() {
                         <Edit className="w-4 h-4 mr-2" />
                         Editar
                       </DropdownMenuItem>
+                      {item.status === "loaned" && (
+                        <DropdownMenuItem onClick={() => handleMarkAsAvailable(item)}>
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Marcar como Disponible
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={() => setSelectedItemForDamage(item)}>
                         <AlertTriangle className="w-4 h-4 mr-2" />
                         Reportar Daño
@@ -332,6 +372,7 @@ export default function InventoryPage() {
                 </div>
               )}
             </div>
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
           </CardContent>
         </Card>
 

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Pagination } from "@/components/ui/pagination"
 import { useToast } from "@/hooks/use-toast"
 import { getInventory, getLoans, createLoan, returnLoan } from "@/lib/firebase"
 import { CULTURAL_GROUPS } from "@/lib/constants"
@@ -23,6 +24,7 @@ export default function LoansPage() {
   const [loans, setLoans] = useState<Loan[]>([])
   const [filteredLoans, setFilteredLoans] = useState<Loan[]>([])
   const [searchTerm, setSearchTerm] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
   const [showLoanForm, setShowLoanForm] = useState(false)
   const [formData, setFormData] = useState({
     borrowerName: "",
@@ -36,20 +38,30 @@ export default function LoansPage() {
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
+  const itemsPerPage = 10
+  const activeLoans = filteredLoans.filter((loan) => loan.status === "active")
+  const totalPages = Math.ceil(activeLoans.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedLoans = activeLoans.slice(startIndex, endIndex)
+
   useEffect(() => {
     loadData()
   }, [])
 
   useEffect(() => {
-    const filtered = loans.filter(
-      (loan) =>
-        loan.borrowerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        loan.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        loan.itemSerialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        loan.borrowerDocument.includes(searchTerm) ||
-        loan.borrowerEmail.toLowerCase().includes(searchTerm.toLowerCase()),
-    )
+    const filtered = loans.filter((loan) => {
+      const searchLower = searchTerm.toLowerCase()
+      return (
+        (loan.borrowerName?.toLowerCase() || "").includes(searchLower) ||
+        (loan.itemName?.toLowerCase() || "").includes(searchLower) ||
+        (loan.itemSerialNumber?.toLowerCase() || "").includes(searchLower) ||
+        (loan.borrowerDocument || "").includes(searchTerm) ||
+        (loan.borrowerEmail?.toLowerCase() || "").includes(searchLower)
+      )
+    })
     setFilteredLoans(filtered)
+    setCurrentPage(1) // Reset to first page when filters change
   }, [loans, searchTerm])
 
   const loadData = async () => {
@@ -241,7 +253,7 @@ export default function LoansPage() {
           <CardHeader>
             <CardTitle className="text-lime-800">Préstamos Activos</CardTitle>
             <CardDescription>
-              {filteredLoans.filter((loan) => loan.status === "active").length} préstamos activos
+              {activeLoans.length} préstamos activos
             </CardDescription>
             <div className="flex gap-2">
               <div className="relative flex-1">
@@ -257,9 +269,7 @@ export default function LoansPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {filteredLoans
-                .filter((loan) => loan.status === "active")
-                .map((loan) => (
+              {paginatedLoans.map((loan) => (
                   <div
                     key={loan.id}
                     className="flex items-center justify-between p-4 border border-lime-200 rounded-lg bg-white"
@@ -288,12 +298,13 @@ export default function LoansPage() {
                     </div>
                   </div>
                 ))}
-              {filteredLoans.filter((loan) => loan.status === "active").length === 0 && (
+              {activeLoans.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   {searchTerm ? "No se encontraron préstamos" : "No hay préstamos activos"}
                 </div>
               )}
             </div>
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
           </CardContent>
         </Card>
       </div>
