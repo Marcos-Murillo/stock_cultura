@@ -2,9 +2,11 @@ import Link from "next/link"
 import { Package, Users, BarChart3, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { RouteGuard } from "@/components/route-guard"
 
 export default function HomePage() {
   return (
+    <RouteGuard allowedRoles={["superadmin", "admin", "monitor"]}>
     <div className="min-h-screen bg-gradient-to-br from-lime-50 to-lime-100">
       <div className="container mx-auto px-4 py-8">
         <div className="text-center mb-12">
@@ -69,5 +71,6 @@ export default function HomePage() {
         </div>
       </div>
     </div>
+    </RouteGuard>
   )
 }

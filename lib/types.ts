@@ -44,3 +44,13 @@ export interface BorrowerSuggestion {
   email: string
   culturalGroup: string
 }
+
+// Auth types
+export type UserRole = "superadmin" | "admin" | "monitor"
+
+export interface StockUser {
+  uid: string
+  nombre: string
+  cedula: string
+  role: UserRole
+}

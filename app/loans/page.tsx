@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { getInventory, getLoans, createLoan, returnLoan } from "@/lib/firebase"
 import { CULTURAL_GROUPS } from "@/lib/constants"
 import type { InventoryItem, Loan } from "@/lib/types"
-import Navigation from "@/components/navigation"
+import { RouteGuard } from "@/components/route-guard"
 import BorrowerAutocomplete from "@/components/borrower-autocomplete"
 import ItemSelector from "@/components/item-selector"
 
@@ -173,6 +173,7 @@ export default function LoansPage() {
   }
 
   return (
+    <RouteGuard allowedRoles={["superadmin", "admin", "monitor"]}>
     <div className="min-h-screen bg-gradient-to-br from-lime-50 to-lime-100">
       <Navigation />
       <div className="container mx-auto px-4 py-8">
@@ -309,5 +310,6 @@ export default function LoansPage() {
         </Card>
       </div>
     </div>
+    </RouteGuard>
   )
 }

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Pagination } from "@/components/ui/pagination"
 import { getDetailedStats, getDamageReports, getLoans } from "@/lib/firebase"
 import type { DamageReport, Loan } from "@/lib/types"
-import Navigation from "@/components/navigation"
+import { RouteGuard } from "@/components/route-guard"
 
 interface ItemStat {
   id?: string
@@ -451,6 +451,7 @@ export default function StatisticsPage() {
     .sort((a, b) => b.damageReports - a.damageReports)
 
   return (
+    <RouteGuard allowedRoles={["superadmin", "admin", "monitor"]}>
     <div className="min-h-screen bg-gradient-to-br from-lime-50 to-lime-100">
       <Navigation />
       <div className="container mx-auto px-4 py-8">
@@ -721,5 +722,6 @@ export default function StatisticsPage() {
         </Card>
       </div>
     </div>
+    </RouteGuard>
   )
 }
