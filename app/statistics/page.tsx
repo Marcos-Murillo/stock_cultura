@@ -9,6 +9,7 @@ import { Pagination } from "@/components/ui/pagination"
 import { getDetailedStats, getDamageReports, getLoans } from "@/lib/firebase"
 import type { DamageReport, Loan } from "@/lib/types"
 import { RouteGuard } from "@/components/route-guard"
+import Navigation from "@/components/navigation"
 
 interface ItemStat {
   id?: string

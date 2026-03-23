@@ -18,6 +18,7 @@ import type { InventoryItem, Loan } from "@/lib/types"
 import { RouteGuard } from "@/components/route-guard"
 import BorrowerAutocomplete from "@/components/borrower-autocomplete"
 import ItemSelector from "@/components/item-selector"
+import Navigation from "@/components/navigation"
 
 export default function LoansPage() {
   const [availableItems, setAvailableItems] = useState<InventoryItem[]>([])

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { getInventory, getLoans } from "@/lib/firebase"
 import type { InventoryItem, Loan } from "@/lib/types"
 import { RouteGuard } from "@/components/route-guard"
+import Navigation from "@/components/navigation"
 
 export default function ReportsPage() {
   const [items, setItems] = useState<InventoryItem[]>([])
